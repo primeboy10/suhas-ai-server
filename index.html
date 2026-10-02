@@ -1309,9 +1309,7 @@ async function sendMessage() {
 
                     body:
                         JSON.stringify({
-                            question,
-                            chatId:
-                                currentChatId
+                            message: question, chatId: currentChatId
                         })
                 }
             );
