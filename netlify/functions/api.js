@@ -19,7 +19,10 @@ app.use(express.json({ limit: "10mb" }));
 // NETLIFY BLOBS
 // ==========================================
 
-const store = getStore("suhas-ai-data");
+const store = getStore("suhas-ai-data", {
+  siteID: process.env.NETLIFY_SITE_ID,
+  token: process.env.NETLIFY_AUTH_TOKEN,
+});
 
 async function readData(key, fallback) {
   const data = await store.get(key, {
@@ -60,7 +63,7 @@ if (process.env.GROQ_API_KEY) {
 }
 
 // ==========================================
-// BASIC ROUTE
+// HOME
 // ==========================================
 
 app.get("/", (req, res) => {
@@ -669,20 +672,18 @@ app.post("/api/ask", authMiddleware, async (req, res) => {
     ];
 
     // ======================================
-    // OPENAI PRIMARY
+    // OPENAI
     // ======================================
 
     if (openai) {
       try {
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-
-          messages: aiMessages,
-
-          temperature: 0.3,
-
-          max_tokens: 4096,
-        });
+        const completion =
+          await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: aiMessages,
+            temperature: 0.3,
+            max_tokens: 4096,
+          });
 
         answer =
           completion.choices?.[0]?.message?.content ||
@@ -708,11 +709,8 @@ app.post("/api/ask", authMiddleware, async (req, res) => {
         const completion =
           await groq.chat.completions.create({
             model: "openai/gpt-oss-120b",
-
             messages: aiMessages,
-
             temperature: 0.3,
-
             max_tokens: 4096,
           });
 
@@ -754,13 +752,9 @@ app.post("/api/ask", authMiddleware, async (req, res) => {
 
     return res.json({
       success: true,
-
       answer,
-
       ai: aiUsed,
-
       chatId: chat.id,
-
       chat,
     });
   } catch (error) {
@@ -775,7 +769,7 @@ app.post("/api/ask", authMiddleware, async (req, res) => {
 });
 
 // ==========================================
-// DELETE ALL USER CHATS
+// DELETE ALL CHATS
 // ==========================================
 
 app.delete("/api/chats", authMiddleware, async (req, res) => {
@@ -807,7 +801,7 @@ app.delete("/api/chats", authMiddleware, async (req, res) => {
 });
 
 // ==========================================
-// NETLIFY FUNCTION EXPORT
+// NETLIFY EXPORT
 // ==========================================
 
 module.exports.handler = serverless(app);
