@@ -23,7 +23,10 @@ app.use(express.json({ limit: "10mb" }));
 const JWT_SECRET =
   process.env.JWT_SECRET || "SUHAS_AI_CHANGE_THIS_SECRET_2026";
 
-const store = getStore("suhas-ai-data");
+const store = getStore("suhas-ai-data", {
+  siteID: process.env.NETLIFY_SITE_ID,
+  token: process.env.NETLIFY_AUTH_TOKEN,
+});
 
 // ==========================================
 // NETLIFY BLOBS HELPERS
