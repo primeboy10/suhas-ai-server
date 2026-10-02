@@ -101,11 +101,9 @@ function authMiddleware(req, res, next) {
     }
 
     const token = header.substring(7);
-
     const decoded = jwt.verify(token, JWT_SECRET);
 
     req.user = decoded;
-
     next();
   } catch (error) {
     return res.status(401).json({
@@ -189,11 +187,14 @@ app.post("/api/auth/signup", async (req, res) => {
   } catch (error) {
     console.error("Signup error:", error);
 
-   res.status(500).json({
-  success: false,
-  message: "Signup failed",
-  error: error.message,
+    res.status(500).json({
+      success: false,
+      message: "Signup failed",
+      error: error.message,
+    });
+  }
 });
+
 // ==========================================
 // LOGIN
 // ==========================================
