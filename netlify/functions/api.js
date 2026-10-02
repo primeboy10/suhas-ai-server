@@ -15,9 +15,9 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-// ==========================================
+// =====================================================
 // NETLIFY BLOBS
-// ==========================================
+// =====================================================
 
 const store = getStore("suhas-ai-data", {
   siteID: process.env.NETLIFY_SITE_ID,
@@ -36,16 +36,16 @@ async function writeData(key, data) {
   await store.setJSON(key, data);
 }
 
-// ==========================================
+// =====================================================
 // JWT
-// ==========================================
+// =====================================================
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "SUHAS_AI_CHANGE_THIS_SECRET_2026";
 
-// ==========================================
+// =====================================================
 // AI CLIENTS
-// ==========================================
+// =====================================================
 
 let openai = null;
 let groq = null;
@@ -62,9 +62,9 @@ if (process.env.GROQ_API_KEY) {
   });
 }
 
-// ==========================================
+// =====================================================
 // HOME
-// ==========================================
+// =====================================================
 
 app.get("/", (req, res) => {
   res.json({
@@ -74,9 +74,9 @@ app.get("/", (req, res) => {
   });
 });
 
-// ==========================================
+// =====================================================
 // STATUS
-// ==========================================
+// =====================================================
 
 app.get("/api/status", (req, res) => {
   res.json({
@@ -94,9 +94,9 @@ app.get("/api/status", (req, res) => {
   });
 });
 
-// ==========================================
+// =====================================================
 // AUTH MIDDLEWARE
-// ==========================================
+// =====================================================
 
 function authMiddleware(req, res, next) {
   try {
@@ -117,6 +117,8 @@ function authMiddleware(req, res, next) {
 
     next();
   } catch (error) {
+    console.error("Authentication error:", error);
+
     return res.status(401).json({
       success: false,
       message: "Invalid or expired token",
@@ -124,9 +126,9 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// ==========================================
+// =====================================================
 // SIGNUP
-// ==========================================
+// =====================================================
 
 app.post("/api/auth/signup", async (req, res) => {
   try {
@@ -201,6 +203,7 @@ app.post("/api/auth/signup", async (req, res) => {
 
     return res.status(201).json({
       success: true,
+
       message: "Account created successfully",
 
       token,
@@ -217,14 +220,14 @@ app.post("/api/auth/signup", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Signup failed",
-      error: error.message,
+      error: error?.message || "Unknown error",
     });
   }
 });
 
-// ==========================================
+// =====================================================
 // LOGIN
-// ==========================================
+// =====================================================
 
 app.post("/api/auth/login", async (req, res) => {
   try {
@@ -280,6 +283,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     return res.json({
       success: true,
+
       message: "Login successful",
 
       token,
@@ -296,14 +300,14 @@ app.post("/api/auth/login", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Login failed",
-      error: error.message,
+      error: error?.message || "Unknown error",
     });
   }
 });
 
-// ==========================================
+// =====================================================
 // CURRENT USER
-// ==========================================
+// =====================================================
 
 app.get("/api/auth/me", authMiddleware, async (req, res) => {
   try {
@@ -336,14 +340,14 @@ app.get("/api/auth/me", authMiddleware, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to get user",
-      error: error.message,
+      error: error?.message || "Unknown error",
     });
   }
 });
 
-// ==========================================
+// =====================================================
 // CREATE CHAT
-// ==========================================
+// =====================================================
 
 app.post("/api/chats", authMiddleware, async (req, res) => {
   try {
@@ -382,14 +386,14 @@ app.post("/api/chats", authMiddleware, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to create chat",
-      error: error.message,
+      error: error?.message || "Unknown error",
     });
   }
 });
 
-// ==========================================
+// =====================================================
 // GET CHATS
-// ==========================================
+// =====================================================
 
 app.get("/api/chats", authMiddleware, async (req, res) => {
   try {
@@ -415,14 +419,14 @@ app.get("/api/chats", authMiddleware, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to get chats",
-      error: error.message,
+      error: error?.message || "Unknown error",
     });
   }
 });
 
-// ==========================================
+// =====================================================
 // GET SINGLE CHAT
-// ==========================================
+// =====================================================
 
 app.get(
   "/api/chats/:id",
@@ -454,15 +458,15 @@ app.get(
       return res.status(500).json({
         success: false,
         message: "Failed to get chat",
-        error: error.message,
+        error: error?.message || "Unknown error",
       });
     }
   }
 );
 
-// ==========================================
+// =====================================================
 // UPDATE CHAT
-// ==========================================
+// =====================================================
 
 app.put(
   "/api/chats/:id",
@@ -509,15 +513,15 @@ app.put(
       return res.status(500).json({
         success: false,
         message: "Failed to update chat",
-        error: error.message,
+        error: error?.message || "Unknown error",
       });
     }
   }
 );
 
-// ==========================================
+// =====================================================
 // DELETE SINGLE CHAT
-// ==========================================
+// =====================================================
 
 app.delete(
   "/api/chats/:id",
@@ -548,23 +552,20 @@ app.delete(
         message: "Chat deleted successfully",
       });
     } catch (error) {
-      console.error(
-        "Delete chat error:",
-        error
-      );
+      console.error("Delete chat error:", error);
 
       return res.status(500).json({
         success: false,
         message: "Failed to delete chat",
-        error: error.message,
+        error: error?.message || "Unknown error",
       });
     }
   }
 );
 
-// ==========================================
+// =====================================================
 // SEARCH CHATS
-// ==========================================
+// =====================================================
 
 app.get(
   "/api/chats/search",
@@ -628,15 +629,15 @@ app.get(
       return res.status(500).json({
         success: false,
         message: "Search failed",
-        error: error.message,
+        error: error?.message || "Unknown error",
       });
     }
   }
 );
 
-// ==========================================
+// =====================================================
 // ASK AI
-// ==========================================
+// =====================================================
 
 app.post(
   "/api/ask",
@@ -645,9 +646,9 @@ app.post(
     try {
       const { message, chatId } = req.body;
 
-      // --------------------------------------
+      // -------------------------------------------------
       // CHECK MESSAGE
-      // --------------------------------------
+      // -------------------------------------------------
 
       if (
         !message ||
@@ -662,9 +663,9 @@ app.post(
       const userMessage =
         String(message).trim();
 
-      // --------------------------------------
+      // -------------------------------------------------
       // LOAD CHATS
-      // --------------------------------------
+      // -------------------------------------------------
 
       const chats = await readData(
         "chats",
@@ -674,9 +675,9 @@ app.post(
       let chat = null;
       let chatIndex = -1;
 
-      // --------------------------------------
+      // -------------------------------------------------
       // FIND EXISTING CHAT
-      // --------------------------------------
+      // -------------------------------------------------
 
       if (chatId) {
         chatIndex = chats.findIndex(
@@ -690,9 +691,9 @@ app.post(
         }
       }
 
-      // --------------------------------------
+      // -------------------------------------------------
       // CREATE NEW CHAT
-      // --------------------------------------
+      // -------------------------------------------------
 
       if (!chat) {
         chat = {
@@ -725,26 +726,29 @@ app.post(
         chatIndex = chats.length - 1;
       }
 
-      // --------------------------------------
+      // -------------------------------------------------
       // SAVE USER MESSAGE
-      // --------------------------------------
+      // -------------------------------------------------
 
       chat.messages.push({
         role: "user",
+
         content: userMessage,
+
         createdAt:
           new Date().toISOString(),
       });
 
-      // --------------------------------------
+      // -------------------------------------------------
       // AI MESSAGES
-      // --------------------------------------
+      // -------------------------------------------------
 
       const aiMessages = [
         {
           role: "system",
+
           content:
-            "You are Suhas AI, a helpful, friendly and accurate AI assistant. Answer clearly and naturally. Use simple language when appropriate.",
+            "You are Suhas AI, a helpful, friendly and accurate AI assistant. Answer clearly and naturally. Use simple language when appropriate. If the user asks for code, provide complete working code when possible.",
         },
 
         ...chat.messages.map((item) => ({
@@ -759,9 +763,9 @@ app.post(
       let groqError = "";
       let openaiError = "";
 
-      // ======================================
+      // =================================================
       // GROQ
-      // ======================================
+      // =================================================
 
       if (groq) {
         try {
@@ -770,18 +774,16 @@ app.post(
           );
 
           const completion =
-            await groq.chat.completions.create(
-              {
-                model:
-                  "openai/gpt-oss-120b",
+            await groq.chat.completions.create({
+              model:
+                "openai/gpt-oss-120b",
 
-                messages: aiMessages,
+              messages: aiMessages,
 
-                temperature: 0.3,
+              temperature: 0.3,
 
-                max_tokens: 4096,
-              }
-            );
+              max_tokens: 4096,
+            });
 
           answer =
             completion
@@ -795,6 +797,9 @@ app.post(
             console.log(
               "Suhas AI: Groq response received."
             );
+          } else {
+            groqError =
+              "Groq returned an empty response";
           }
         } catch (error) {
           groqError =
@@ -811,9 +816,9 @@ app.post(
           "GROQ_API_KEY is not available";
       }
 
-      // ======================================
+      // =================================================
       // OPENAI BACKUP
-      // ======================================
+      // =================================================
 
       if (!answer && openai) {
         try {
@@ -822,17 +827,15 @@ app.post(
           );
 
           const completion =
-            await openai.chat.completions.create(
-              {
-                model: "gpt-4o-mini",
+            await openai.chat.completions.create({
+              model: "gpt-4o-mini",
 
-                messages: aiMessages,
+              messages: aiMessages,
 
-                temperature: 0.3,
+              temperature: 0.3,
 
-                max_tokens: 4096,
-              }
-            );
+              max_tokens: 4096,
+            });
 
           answer =
             completion
@@ -846,6 +849,9 @@ app.post(
             console.log(
               "Suhas AI: OpenAI response received."
             );
+          } else {
+            openaiError =
+              "OpenAI returned an empty response";
           }
         } catch (error) {
           openaiError =
@@ -862,13 +868,31 @@ app.post(
           "OPENAI_API_KEY is not available";
       }
 
-      // ======================================
+      // =================================================
       // BOTH PROVIDERS FAILED
-      // ======================================
+      // =================================================
 
       if (!answer) {
         console.error(
-          "Suhas AI: Both AI providers failed."
+          "=========================================="
+        );
+
+        console.error(
+          "SUHAS AI: BOTH AI PROVIDERS FAILED"
+        );
+
+        console.error(
+          "Groq:",
+          groqError
+        );
+
+        console.error(
+          "OpenAI:",
+          openaiError
+        );
+
+        console.error(
+          "=========================================="
         );
 
         return res.status(503).json({
@@ -889,9 +913,9 @@ app.post(
         });
       }
 
-      // ======================================
+      // =================================================
       // SAVE AI MESSAGE
-      // ======================================
+      // =================================================
 
       chat.messages.push({
         role: "assistant",
@@ -909,18 +933,18 @@ app.post(
 
       chats[chatIndex] = chat;
 
-      // --------------------------------------
+      // =================================================
       // SAVE CHAT
-      // --------------------------------------
+      // =================================================
 
       await writeData(
         "chats",
         chats
       );
 
-      // ======================================
-      // SUCCESS RESPONSE
-      // ======================================
+      // =================================================
+      // SUCCESS
+      // =================================================
 
       return res.json({
         success: true,
@@ -953,9 +977,9 @@ app.post(
   }
 );
 
-// ==========================================
+// =====================================================
 // DELETE ALL CHATS
-// ==========================================
+// =====================================================
 
 app.delete(
   "/api/chats",
@@ -980,6 +1004,7 @@ app.delete(
 
       return res.json({
         success: true,
+
         message:
           "All chats deleted successfully",
       });
@@ -991,17 +1016,21 @@ app.delete(
 
       return res.status(500).json({
         success: false,
+
         message:
           "Failed to delete chats",
-        error: error.message,
+
+        error:
+          error?.message ||
+          "Unknown error",
       });
     }
   }
 );
 
-// ==========================================
-// NETLIFY EXPORT
-// ==========================================
+// =====================================================
+// NETLIFY FUNCTION EXPORT
+// =====================================================
 
 module.exports.handler =
   serverless(app);
