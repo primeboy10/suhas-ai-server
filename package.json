@@ -4,6 +4,7 @@
   "description": "",
   "main": "server.js",
   "dependencies": {
+    "@netlify/blobs": "^11.1.3",
     "accepts": "^2.0.0",
     "agent-base": "^7.1.4",
     "base64-js": "^1.5.1",
@@ -97,6 +98,7 @@
     "semver": "^7.8.5",
     "send": "^1.2.1",
     "serve-static": "^2.2.1",
+    "serverless-http": "^4.0.0",
     "setprototypeof": "^1.2.0",
     "side-channel": "^1.1.1",
     "side-channel-list": "^1.0.1",
@@ -119,5 +121,13 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/primeboy10/suhas-ai-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/primeboy10/suhas-ai-server/issues"
+  },
+  "homepage": "https://github.com/primeboy10/suhas-ai-server#readme"
 }
