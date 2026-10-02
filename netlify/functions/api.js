@@ -5,7 +5,6 @@ const OpenAI = require("openai");
 const Groq = require("groq-sdk");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
 const serverless = require("serverless-http");
 const { getStore } = require("@netlify/blobs");
 
@@ -17,23 +16,16 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
 // ==========================================
-// SUHAS AI - NETLIFY BACKEND
+// NETLIFY BLOBS
 // ==========================================
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || "SUHAS_AI_CHANGE_THIS_SECRET_2026";
-
-const store = getStore("suhas-ai-data", {
-  siteID: process.env.NETLIFY_SITE_ID,
-  token: process.env.NETLIFY_AUTH_TOKEN,
-});
-
-// ==========================================
-// NETLIFY BLOBS HELPERS
-// ==========================================
+const store = getStore("suhas-ai-data");
 
 async function readData(key, fallback) {
-  const data = await store.get(key, { type: "json" });
+  const data = await store.get(key, {
+    type: "json",
+  });
+
   return data ?? fallback;
 }
 
@@ -42,7 +34,14 @@ async function writeData(key, data) {
 }
 
 // ==========================================
-// AI SETUP
+// JWT
+// ==========================================
+
+const JWT_SECRET =
+  process.env.JWT_SECRET || "SUHAS_AI_CHANGE_THIS_SECRET_2026";
+
+// ==========================================
+// AI CLIENTS
 // ==========================================
 
 let openai = null;
@@ -61,15 +60,20 @@ if (process.env.GROQ_API_KEY) {
 }
 
 // ==========================================
-// HOME / STATUS
+// BASIC ROUTE
 // ==========================================
 
 app.get("/", (req, res) => {
   res.json({
     success: true,
-    message: "Suhas AI API is running!",
+    service: "Suhas AI",
+    message: "Suhas AI server is running!",
   });
 });
+
+// ==========================================
+// STATUS
+// ==========================================
 
 app.get("/api/status", (req, res) => {
   res.json({
@@ -91,19 +95,21 @@ app.get("/api/status", (req, res) => {
 
 function authMiddleware(req, res, next) {
   try {
-    const header = req.headers.authorization || "";
+    const authHeader = req.headers.authorization;
 
-    if (!header.startsWith("Bearer ")) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
         message: "Authentication required",
       });
     }
 
-    const token = header.substring(7);
+    const token = authHeader.split(" ")[1];
+
     const decoded = jwt.verify(token, JWT_SECRET);
 
     req.user = decoded;
+
     next();
   } catch (error) {
     return res.status(401).json({
@@ -114,7 +120,7 @@ function authMiddleware(req, res, next) {
 }
 
 // ==========================================
-// SIGN UP
+// SIGNUP
 // ==========================================
 
 app.post("/api/auth/signup", async (req, res) => {
@@ -150,24 +156,32 @@ app.post("/api/auth/signup", async (req, res) => {
       });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = {
-      id: crypto.randomUUID(),
+    const newUser = {
+      id:
+        Date.now().toString() +
+        "-" +
+        Math.random().toString(36).substring(2, 10),
+
       name: name.trim(),
+
       email: normalizedEmail,
-      passwordHash,
+
+      password: hashedPassword,
+
       createdAt: new Date().toISOString(),
     };
 
-    users.push(user);
+    users.push(newUser);
 
     await writeData("users", users);
 
     const token = jwt.sign(
       {
-        id: user.id,
-        email: user.email,
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
       },
       JWT_SECRET,
       {
@@ -175,19 +189,22 @@ app.post("/api/auth/signup", async (req, res) => {
       }
     );
 
-    res.json({
+    return res.status(201).json({
       success: true,
+      message: "Account created successfully",
+
       token,
+
       user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
       },
     });
   } catch (error) {
     console.error("Signup error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Signup failed",
       error: error.message,
@@ -215,7 +232,7 @@ app.post("/api/auth/login", async (req, res) => {
     const normalizedEmail = email.trim().toLowerCase();
 
     const user = users.find(
-      (u) => u.email === normalizedEmail
+      (item) => item.email === normalizedEmail
     );
 
     if (!user) {
@@ -225,12 +242,12 @@ app.post("/api/auth/login", async (req, res) => {
       });
     }
 
-    const validPassword = await bcrypt.compare(
+    const passwordMatch = await bcrypt.compare(
       password,
-      user.passwordHash
+      user.password
     );
 
-    if (!validPassword) {
+    if (!passwordMatch) {
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
@@ -240,6 +257,7 @@ app.post("/api/auth/login", async (req, res) => {
     const token = jwt.sign(
       {
         id: user.id,
+        name: user.name,
         email: user.email,
       },
       JWT_SECRET,
@@ -248,9 +266,12 @@ app.post("/api/auth/login", async (req, res) => {
       }
     );
 
-    res.json({
+    return res.json({
       success: true,
+      message: "Login successful",
+
       token,
+
       user: {
         id: user.id,
         name: user.name,
@@ -260,9 +281,10 @@ app.post("/api/auth/login", async (req, res) => {
   } catch (error) {
     console.error("Login error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Login failed",
+      error: error.message,
     });
   }
 });
@@ -276,7 +298,7 @@ app.get("/api/auth/me", authMiddleware, async (req, res) => {
     const users = await readData("users", []);
 
     const user = users.find(
-      (u) => u.id === req.user.id
+      (item) => item.id === req.user.id
     );
 
     if (!user) {
@@ -286,20 +308,23 @@ app.get("/api/auth/me", authMiddleware, async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
+
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
+        createdAt: user.createdAt,
       },
     });
   } catch (error) {
-    console.error("Me error:", error);
+    console.error("Get user error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Could not load user",
+      message: "Failed to get user",
+      error: error.message,
     });
   }
 });
@@ -310,31 +335,42 @@ app.get("/api/auth/me", authMiddleware, async (req, res) => {
 
 app.post("/api/chats", authMiddleware, async (req, res) => {
   try {
+    const { title } = req.body;
+
     const chats = await readData("chats", []);
 
-    const chat = {
-      id: crypto.randomUUID(),
+    const newChat = {
+      id:
+        Date.now().toString() +
+        "-" +
+        Math.random().toString(36).substring(2, 10),
+
       userId: req.user.id,
-      title: req.body.title || "New Chat",
+
+      title: title || "New Chat",
+
       messages: [],
+
       createdAt: new Date().toISOString(),
+
       updatedAt: new Date().toISOString(),
     };
 
-    chats.push(chat);
+    chats.push(newChat);
 
     await writeData("chats", chats);
 
-    res.json({
+    return res.status(201).json({
       success: true,
-      chat,
+      chat: newChat,
     });
   } catch (error) {
     console.error("Create chat error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Could not create chat",
+      message: "Failed to create chat",
+      error: error.message,
     });
   }
 });
@@ -355,204 +391,200 @@ app.get("/api/chats", authMiddleware, async (req, res) => {
           new Date(a.updatedAt)
       );
 
-    res.json({
+    return res.json({
       success: true,
       chats: userChats,
     });
   } catch (error) {
     console.error("Get chats error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Could not load chats",
+      message: "Failed to get chats",
+      error: error.message,
     });
   }
 });
 
 // ==========================================
-// GET ONE CHAT
+// GET SINGLE CHAT
 // ==========================================
 
-app.get(
-  "/api/chats/:id",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      const chats = await readData("chats", []);
+app.get("/api/chats/:id", authMiddleware, async (req, res) => {
+  try {
+    const chats = await readData("chats", []);
 
-      const chat = chats.find(
-        (c) =>
-          c.id === req.params.id &&
-          c.userId === req.user.id
-      );
+    const chat = chats.find(
+      (item) =>
+        item.id === req.params.id &&
+        item.userId === req.user.id
+    );
 
-      if (!chat) {
-        return res.status(404).json({
-          success: false,
-          message: "Chat not found",
-        });
-      }
-
-      res.json({
-        success: true,
-        chat,
-      });
-    } catch (error) {
-      console.error("Get chat error:", error);
-
-      res.status(500).json({
+    if (!chat) {
+      return res.status(404).json({
         success: false,
-        message: "Could not load chat",
+        message: "Chat not found",
       });
     }
+
+    return res.json({
+      success: true,
+      chat,
+    });
+  } catch (error) {
+    console.error("Get chat error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get chat",
+      error: error.message,
+    });
   }
-);
+});
 
 // ==========================================
 // UPDATE CHAT
 // ==========================================
 
-app.put(
-  "/api/chats/:id",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      const chats = await readData("chats", []);
+app.put("/api/chats/:id", authMiddleware, async (req, res) => {
+  try {
+    const { title, messages } = req.body;
 
-      const index = chats.findIndex(
-        (c) =>
-          c.id === req.params.id &&
-          c.userId === req.user.id
-      );
+    const chats = await readData("chats", []);
 
-      if (index === -1) {
-        return res.status(404).json({
-          success: false,
-          message: "Chat not found",
-        });
-      }
+    const index = chats.findIndex(
+      (item) =>
+        item.id === req.params.id &&
+        item.userId === req.user.id
+    );
 
-      chats[index] = {
-        ...chats[index],
-        ...req.body,
-        updatedAt: new Date().toISOString(),
-      };
-
-      await writeData("chats", chats);
-
-      res.json({
-        success: true,
-        chat: chats[index],
-      });
-    } catch (error) {
-      console.error("Update chat error:", error);
-
-      res.status(500).json({
+    if (index === -1) {
+      return res.status(404).json({
         success: false,
-        message: "Could not update chat",
+        message: "Chat not found",
       });
     }
+
+    if (title !== undefined) {
+      chats[index].title = title;
+    }
+
+    if (messages !== undefined) {
+      chats[index].messages = messages;
+    }
+
+    chats[index].updatedAt = new Date().toISOString();
+
+    await writeData("chats", chats);
+
+    return res.json({
+      success: true,
+      chat: chats[index],
+    });
+  } catch (error) {
+    console.error("Update chat error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update chat",
+      error: error.message,
+    });
   }
-);
+});
 
 // ==========================================
-// DELETE ONE CHAT
+// DELETE SINGLE CHAT
 // ==========================================
 
-app.delete(
-  "/api/chats/:id",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      const chats = await readData("chats", []);
+app.delete("/api/chats/:id", authMiddleware, async (req, res) => {
+  try {
+    const chats = await readData("chats", []);
 
-      const oldLength = chats.length;
+    const newChats = chats.filter(
+      (chat) =>
+        !(
+          chat.id === req.params.id &&
+          chat.userId === req.user.id
+        )
+    );
 
-      const filtered = chats.filter(
-        (c) =>
-          !(
-            c.id === req.params.id &&
-            c.userId === req.user.id
-          )
-      );
-
-      if (filtered.length === oldLength) {
-        return res.status(404).json({
-          success: false,
-          message: "Chat not found",
-        });
-      }
-
-      await writeData("chats", filtered);
-
-      res.json({
-        success: true,
-        message: "Chat deleted",
-      });
-    } catch (error) {
-      console.error("Delete chat error:", error);
-
-      res.status(500).json({
+    if (newChats.length === chats.length) {
+      return res.status(404).json({
         success: false,
-        message: "Could not delete chat",
+        message: "Chat not found",
       });
     }
+
+    await writeData("chats", newChats);
+
+    return res.json({
+      success: true,
+      message: "Chat deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete chat error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete chat",
+      error: error.message,
+    });
   }
-);
+});
 
 // ==========================================
 // SEARCH CHATS
 // ==========================================
 
-app.get(
-  "/api/chats/search",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      const q = String(req.query.q || "")
-        .trim()
-        .toLowerCase();
+app.get("/api/chats/search", authMiddleware, async (req, res) => {
+  try {
+    const query = String(req.query.q || "")
+      .trim()
+      .toLowerCase();
 
-      const chats = await readData("chats", []);
-
-      const userChats = chats.filter(
-        (chat) => chat.userId === req.user.id
-      );
-
-      if (!q) {
-        return res.json({
-          success: true,
-          chats: userChats,
-        });
-      }
-
-      const results = userChats.filter((chat) => {
-        const title = String(chat.title || "").toLowerCase();
-
-        const messages = JSON.stringify(
-          chat.messages || []
-        ).toLowerCase();
-
-        return (
-          title.includes(q) ||
-          messages.includes(q)
-        );
-      });
-
-      res.json({
+    if (!query) {
+      return res.json({
         success: true,
-        chats: results,
-      });
-    } catch (error) {
-      console.error("Search error:", error);
-
-      res.status(500).json({
-        success: false,
-        message: "Search failed",
+        chats: [],
       });
     }
+
+    const chats = await readData("chats", []);
+
+    const userChats = chats.filter(
+      (chat) => chat.userId === req.user.id
+    );
+
+    const results = userChats.filter((chat) => {
+      const titleMatch = String(chat.title || "")
+        .toLowerCase()
+        .includes(query);
+
+      const messageMatch = Array.isArray(chat.messages)
+        ? chat.messages.some((message) =>
+            String(message.content || "")
+              .toLowerCase()
+              .includes(query)
+          )
+        : false;
+
+      return titleMatch || messageMatch;
+    });
+
+    return res.json({
+      success: true,
+      chats: results,
+    });
+  } catch (error) {
+    console.error("Search chats error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Search failed",
+      error: error.message,
+    });
   }
-);
+});
 
 // ==========================================
 // ASK AI
@@ -560,71 +592,81 @@ app.get(
 
 app.post("/api/ask", authMiddleware, async (req, res) => {
   try {
-    const { question, chatId } = req.body;
+    const { message, chatId } = req.body;
 
-    if (!question || !String(question).trim()) {
+    if (!message || !String(message).trim()) {
       return res.status(400).json({
         success: false,
-        message: "Question is required",
+        message: "Message is required",
       });
     }
+
+    const userMessage = String(message).trim();
 
     const chats = await readData("chats", []);
 
     let chat = null;
+    let chatIndex = -1;
 
     if (chatId) {
-      chat = chats.find(
-        (c) =>
-          c.id === chatId &&
-          c.userId === req.user.id
+      chatIndex = chats.findIndex(
+        (item) =>
+          item.id === chatId &&
+          item.userId === req.user.id
       );
+
+      if (chatIndex !== -1) {
+        chat = chats[chatIndex];
+      }
     }
 
     if (!chat) {
       chat = {
-        id: crypto.randomUUID(),
+        id:
+          Date.now().toString() +
+          "-" +
+          Math.random().toString(36).substring(2, 10),
+
         userId: req.user.id,
-        title: String(question)
-          .trim()
-          .slice(0, 60),
+
+        title:
+          userMessage.length > 50
+            ? userMessage.substring(0, 50) + "..."
+            : userMessage,
+
         messages: [],
+
         createdAt: new Date().toISOString(),
+
         updatedAt: new Date().toISOString(),
       };
 
       chats.push(chat);
+
+      chatIndex = chats.length - 1;
     }
 
     chat.messages.push({
       role: "user",
-      content: String(question).trim(),
+      content: userMessage,
       createdAt: new Date().toISOString(),
     });
 
-    const recentMessages = chat.messages
-      .slice(-24)
-      .map((message) => ({
-        role: message.role,
-        content: message.content,
-      }));
-
-    const systemPrompt = `
-You are Suhas AI, a helpful AI assistant.
-
-Rules:
-- Give accurate and useful answers.
-- Explain difficult things step by step.
-- Use simple language when appropriate.
-- For maths, show the complete solution.
-- For coding, provide working code and explain where to put it.
-- Use Markdown when it improves readability.
-- If you are uncertain about something, clearly say so.
-- Never pretend to have information you do not have.
-`;
-
     let answer = "";
-    let ai = "";
+    let aiUsed = "";
+
+    const aiMessages = [
+      {
+        role: "system",
+        content:
+          "You are Suhas AI, a helpful, friendly and accurate AI assistant. Answer clearly and naturally. Use simple language when appropriate.",
+      },
+
+      ...chat.messages.map((item) => ({
+        role: item.role,
+        content: item.content,
+      })),
+    ];
 
     // ======================================
     // OPENAI PRIMARY
@@ -632,28 +674,26 @@ Rules:
 
     if (openai) {
       try {
-        const completion =
-          await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            temperature: 0.3,
-            max_tokens: 4096,
-            messages: [
-              {
-                role: "system",
-                content: systemPrompt,
-              },
-              ...recentMessages,
-            ],
-          });
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+
+          messages: aiMessages,
+
+          temperature: 0.3,
+
+          max_tokens: 4096,
+        });
 
         answer =
           completion.choices?.[0]?.message?.content ||
           "";
 
-        ai = "OpenAI";
+        if (answer) {
+          aiUsed = "OpenAI";
+        }
       } catch (error) {
         console.error(
-          "OpenAI failed:",
+          "OpenAI error:",
           error.message
         );
       }
@@ -668,25 +708,24 @@ Rules:
         const completion =
           await groq.chat.completions.create({
             model: "openai/gpt-oss-120b",
+
+            messages: aiMessages,
+
             temperature: 0.3,
+
             max_tokens: 4096,
-            messages: [
-              {
-                role: "system",
-                content: systemPrompt,
-              },
-              ...recentMessages,
-            ],
           });
 
         answer =
           completion.choices?.[0]?.message?.content ||
           "";
 
-        ai = "Groq";
+        if (answer) {
+          aiUsed = "Groq";
+        }
       } catch (error) {
         console.error(
-          "Groq failed:",
+          "Groq error:",
           error.message
         );
       }
@@ -696,44 +735,41 @@ Rules:
       return res.status(503).json({
         success: false,
         message:
-          "AI service is not available. Check your API keys.",
+          "AI service is temporarily unavailable",
       });
     }
 
     chat.messages.push({
       role: "assistant",
       content: answer,
-      ai,
+      ai: aiUsed,
       createdAt: new Date().toISOString(),
     });
 
     chat.updatedAt = new Date().toISOString();
 
-    const index = chats.findIndex(
-      (c) => c.id === chat.id
-    );
-
-    if (index === -1) {
-      chats.push(chat);
-    } else {
-      chats[index] = chat;
-    }
+    chats[chatIndex] = chat;
 
     await writeData("chats", chats);
 
-    res.json({
+    return res.json({
       success: true,
+
       answer,
-      ai,
+
+      ai: aiUsed,
+
       chatId: chat.id,
+
       chat,
     });
   } catch (error) {
-    console.error("Ask error:", error);
+    console.error("AI request error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "AI request failed",
+      error: error.message,
     });
   }
 });
@@ -742,36 +778,33 @@ Rules:
 // DELETE ALL USER CHATS
 // ==========================================
 
-app.delete(
-  "/api/chats",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      const chats = await readData("chats", []);
+app.delete("/api/chats", authMiddleware, async (req, res) => {
+  try {
+    const chats = await readData("chats", []);
 
-      const filtered = chats.filter(
-        (chat) => chat.userId !== req.user.id
-      );
+    const remainingChats = chats.filter(
+      (chat) => chat.userId !== req.user.id
+    );
 
-      await writeData("chats", filtered);
+    await writeData("chats", remainingChats);
 
-      res.json({
-        success: true,
-        message: "All chats deleted",
-      });
-    } catch (error) {
-      console.error(
-        "Delete all chats error:",
-        error
-      );
+    return res.json({
+      success: true,
+      message: "All chats deleted successfully",
+    });
+  } catch (error) {
+    console.error(
+      "Delete all chats error:",
+      error
+    );
 
-      res.status(500).json({
-        success: false,
-        message: "Could not delete chats",
-      });
-    }
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete chats",
+      error: error.message,
+    });
   }
-);
+});
 
 // ==========================================
 // NETLIFY FUNCTION EXPORT
