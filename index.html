@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suhas AI</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #fff;
+    color: #111827;
+}
+
+/* ================= AUTH ================= */
+
+#authScreen {
+    position: fixed;
+    inset: 0;
+    background: #f5f7fb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-box {
+    width: 390px;
+    max-width: calc(100% - 30px);
+    background: white;
+    padding: 35px;
+    border-radius: 18px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.12);
+}
+
+.logo {
+    text-align: center;
+    color: #2563eb;
+    font-size: 30px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.auth-box h2 {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.auth-box input {
+    width: 100%;
+    padding: 13px;
+    margin-bottom: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 9px;
+    outline: none;
+}
+
+.auth-box input:focus {
+    border-color: #2563eb;
+}
+
+.auth-button {
+    width: 100%;
+    padding: 13px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 9px;
+    background: #2563eb;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.auth-button:hover {
+    background: #1d4ed8;
+}
+
+.auth-button:disabled {
+    background: #9ca3af;
+}
+
+.auth-error {
+    min-height: 20px;
+    color: #dc2626;
+    text-align: center;
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+.switch {
+    text-align: center;
+    margin-top: 18px;
+    font-size: 14px;
+}
+
+.switch button {
+    border: none;
+    background: none;
+    color: #2563eb;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* ================= APP ================= */
+
+#app {
+    display: none;
+    height: 100vh;
+}
+
+.sidebar {
+    width: 280px;
+    background: #f7f7f8;
+    border-right: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-logo {
+    padding: 20px;
+    color: #2563eb;
+    font-size: 22px;
+    font-weight: bold;
+}
+
+.new-chat {
+    margin: 0 15px 15px;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    background: white;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.new-chat:hover {
+    background: #f3f4f6;
+}
+
+.search {
+    margin: 0 15px 15px;
+}
+
+.search input {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #d1d5db;
+    border-radius: 9px;
+}
+
+.chat-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 10px;
+}
+
+.chat-item {
+    padding: 11px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-item:hover {
+    background: #e5e7eb;
+}
+
+.profile {
+    padding: 15px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.avatar {
+    width: 38px;
+    height: 38px;
+    background: #2563eb;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+}
+
+.profile-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.profile-name {
+    font-weight: bold;
+}
+
+.profile-email {
+    font-size: 12px;
+    color: #6b7280;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.logout {
+    border: none;
+    background: none;
+    color: #dc2626;
+    cursor: pointer;
+}
+
+/* ================= MAIN ================= */
+
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.header {
+    height: 64px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    padding: 0 22px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 30px 20px 130px;
+}
+
+.welcome {
+    text-align: center;
+    margin-top: 120px;
+}
+
+.welcome h1 {
+    font-size: 34px;
+}
+
+.welcome p {
+    color: #6b7280;
+}
+
+.message {
+    max-width: 850px;
+    margin: 0 auto 25px;
+    display: flex;
+    gap: 15px;
+}
+
+.message-avatar {
+    width: 35px;
+    height: 35px;
+    min-width: 35px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-weight: bold;
+}
+
+.user-avatar {
+    background: #111827;
+}
+
+.ai-avatar {
+    background: #2563eb;
+}
+
+.message-content {
+    flex: 1;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+/* ================= INPUT ================= */
+
+.input-area {
+    position: fixed;
+    bottom: 0;
+    left: 280px;
+    right: 0;
+    background: white;
+    padding: 15px 20px 20px;
+}
+
+.input-box {
+    max-width: 850px;
+    margin: auto;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    border: 1px solid #d1d5db;
+    border-radius: 15px;
+    padding: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.08);
+}
+
+.input-box textarea {
+    flex: 1;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 10px;
+    min-height: 45px;
+}
+
+.send {
+    width: 45px;
+    height: 45px;
+    border: none;
+    border-radius: 10px;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+}
+
+.send:disabled {
+    background: #9ca3af;
+}
+
+/* ================= MOBILE ================= */
+
+@media(max-width:700px) {
+    .sidebar {
+        display: none;
+    }
+
+    .input-area {
+        left: 0;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ================= LOGIN ================= -->
+
+<div id="authScreen">
+
+    <div class="auth-box">
+
+        <div class="logo">
+            🤖 Suhas AI
+        </div>
+
+        <h2 id="authTitle">Login</h2>
+
+        <div id="nameField" style="display:none;">
+            <input
+                id="nameInput"
+                type="text"
+                placeholder="Full name">
+        </div>
+
+        <input
+            id="emailInput"
+            type="email"
+            placeholder="Email">
+
+        <input
+            id="passwordInput"
+            type="password"
+            placeholder="Password">
+
+        <button
+            id="authButton"
+            class="auth-button"
+            type="button">
+            Login
+        </button>
+
+        <div
+            id="authError"
+            class="auth-error">
+        </div>
+
+        <div class="switch">
+
+            <span id="switchText">
+                Don't have an account?
+            </span>
+
+            <button
+                id="switchButton"
+                type="button">
+                Sign Up
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= APP ================= -->
+
+<div id="app">
+
+    <aside class="sidebar">
+
+        <div class="sidebar-logo">
+            🤖 Suhas AI
+        </div>
+
+        <button
+            class="new-chat"
+            id="newChatButton"
+            type="button">
+            ＋ New Chat
+        </button>
+
+        <div class="search">
+            <input
+                id="searchInput"
+                placeholder="🔎 Search chats...">
+        </div>
+
+        <div
+            id="chatList"
+            class="chat-list">
+        </div>
+
+        <div class="profile">
+
+            <div
+                id="avatar"
+                class="avatar">
+                S
+            </div>
+
+            <div class="profile-info">
+
+                <div
+                    id="profileName"
+                    class="profile-name">
+                    Suhas
+                </div>
+
+                <div
+                    id="profileEmail"
+                    class="profile-email">
+                </div>
+
+            </div>
+
+            <button
+                id="logoutButton"
+                class="logout"
+                type="button">
+                Logout
+            </button>
+
+        </div>
+
+    </aside>
+
+
+    <main class="main">
+
+        <div class="header">
+            Suhas AI
+        </div>
+
+        <div
+            id="messages"
+            class="messages">
+
+            <div class="welcome">
+
+                <h1>
+                    How can I help you?
+                </h1>
+
+                <p>
+                    Ask anything and Suhas AI will answer.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="input-area">
+
+            <div class="input-box">
+
+                <textarea
+                    id="questionInput"
+                    placeholder="Message Suhas AI..."
+                    rows="1">
+                </textarea>
+
+                <button
+                    id="sendButton"
+                    class="send"
+                    type="button">
+                    ➤
+                </button>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<script>
+
+/* =========================================================
+   CONFIG
+========================================================= */
+
+const API = "";
+
+
+/* =========================================================
+   VARIABLES
+========================================================= */
+
+let token = localStorage.getItem("suhas_token");
+let currentUser = null;
+let currentChatId = null;
+let isSignup = false;
+
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
+const authScreen =
+    document.getElementById("authScreen");
+
+const app =
+    document.getElementById("app");
+
+const authButton =
+    document.getElementById("authButton");
+
+const switchButton =
+    document.getElementById("switchButton");
+
+const logoutButton =
+    document.getElementById("logoutButton");
+
+const newChatButton =
+    document.getElementById("newChatButton");
+
+const sendButton =
+    document.getElementById("sendButton");
+
+const questionInput =
+    document.getElementById("questionInput");
+
+
+/* =========================================================
+   SIGN UP / LOGIN SWITCH
+========================================================= */
+
+switchButton.addEventListener(
+    "click",
+    function() {
+
+        isSignup = !isSignup;
+
+        document.getElementById(
+            "authTitle"
+        ).textContent =
+            isSignup
+                ? "Create Account"
+                : "Login";
+
+        document.getElementById(
+            "nameField"
+        ).style.display =
+            isSignup
+                ? "block"
+                : "none";
+
+        document.getElementById(
+            "authButton"
+        ).textContent =
+            isSignup
+                ? "Sign Up"
+                : "Login";
+
+        document.getElementById(
+            "switchText"
+        ).textContent =
+            isSignup
+                ? "Already have an account?"
+                : "Don't have an account?";
+
+        switchButton.textContent =
+            isSignup
+                ? "Login"
+                : "Sign Up";
+
+        document.getElementById(
+            "authError"
+        ).textContent = "";
+    }
+);
+
+
+/* =========================================================
+   LOGIN / SIGNUP
+========================================================= */
+
+authButton.addEventListener(
+    "click",
+    submitAuth
+);
+
+
+async function submitAuth() {
+
+    const name =
+        document.getElementById(
+            "nameInput"
+        ).value.trim();
+
+    const email =
+        document.getElementById(
+            "emailInput"
+        ).value.trim();
+
+    const password =
+        document.getElementById(
+            "passwordInput"
+        ).value;
+
+    const errorBox =
+        document.getElementById(
+            "authError"
+        );
+
+
+    errorBox.textContent = "";
+
+
+    if (isSignup && !name) {
+
+        errorBox.textContent =
+            "Please enter your name.";
+
+        return;
+    }
+
+
+    if (!email || !password) {
+
+        errorBox.textContent =
+            "Please enter email and password.";
+
+        return;
+    }
+
+
+    if (password.length < 6) {
+
+        errorBox.textContent =
+            "Password must be at least 6 characters.";
+
+        return;
+    }
+
+
+    authButton.disabled = true;
+
+    authButton.textContent =
+        isSignup
+            ? "Creating..."
+            : "Logging in...";
+
+
+    try {
+
+        const endpoint =
+            isSignup
+                ? "/api/auth/signup"
+                : "/api/auth/login";
+
+
+        const body =
+            isSignup
+                ? {
+                    name,
+                    email,
+                    password
+                }
+                : {
+                    email,
+                    password
+                };
+
+
+        const response =
+            await fetch(
+                API + endpoint,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify(body)
+                }
+            );
+
+
+        let data = {};
+
+        try {
+            data =
+                await response.json();
+        }
+        catch {
+            data = {};
+        }
+
+
+        if (!response.ok) {
+
+            errorBox.textContent =
+                data.message ||
+                data.error ||
+                "Login failed.";
+
+            return;
+        }
+
+
+        if (!data.token) {
+
+            errorBox.textContent =
+                "Server did not return token.";
+
+            return;
+        }
+
+
+        token =
+            data.token;
+
+
+        localStorage.setItem(
+            "suhas_token",
+            token
+        );
+
+
+        currentUser =
+            data.user || null;
+
+
+        /* OPEN APP */
+
+        authScreen.style.display =
+            "none";
+
+        app.style.display =
+            "flex";
+
+
+        updateProfile();
+
+        loadChats();
+
+
+    }
+    catch (error) {
+
+        console.error(error);
+
+        errorBox.textContent =
+            "Cannot connect to Suhas AI server.";
+
+    }
+    finally {
+
+        authButton.disabled =
+            false;
+
+        authButton.textContent =
+            isSignup
+                ? "Sign Up"
+                : "Login";
+    }
+}
+
+
+/* =========================================================
+   PROFILE
+========================================================= */
+
+function updateProfile() {
+
+    if (!currentUser) {
+        return;
+    }
+
+
+    document.getElementById(
+        "profileName"
+    ).textContent =
+        currentUser.name ||
+        "Suhas";
+
+
+    document.getElementById(
+        "profileEmail"
+    ).textContent =
+        currentUser.email ||
+        "";
+
+
+    document.getElementById(
+        "avatar"
+    ).textContent =
+        (
+            currentUser.name ||
+            "S"
+        )
+        .charAt(0)
+        .toUpperCase();
+}
+
+
+/* =========================================================
+   CURRENT USER
+========================================================= */
+
+async function loadCurrentUser() {
+
+    if (!token) {
+        return false;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                API + "/api/auth/me",
+                {
+                    headers: {
+                        Authorization:
+                            "Bearer " + token
+                    }
+                }
+            );
+
+
+        if (!response.ok) {
+
+            localStorage.removeItem(
+                "suhas_token"
+            );
+
+            token = null;
+
+            return false;
+        }
+
+
+        const data =
+            await response.json();
+
+
+        currentUser =
+            data.user || data;
+
+
+        return true;
+
+    }
+    catch (error) {
+
+        console.error(error);
+
+        return false;
+    }
+}
+
+
+/* =========================================================
+   LOAD CHATS
+========================================================= */
+
+async function loadChats() {
+
+    if (!token) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                API + "/api/chats",
+                {
+                    headers: {
+                        Authorization:
+                            "Bearer " + token
+                    }
+                }
+            );
+
+
+        if (!response.ok) {
+            return;
+        }
+
+
+        const data =
+            await response.json();
+
+
+        renderChats(
+            data.chats || []
+        );
+
+    }
+    catch (error) {
+
+        console.log(error);
+    }
+}
+
+
+/* =========================================================
+   RENDER CHATS
+========================================================= */
+
+function renderChats(chats) {
+
+    const list =
+        document.getElementById(
+            "chatList"
+        );
+
+
+    list.innerHTML = "";
+
+
+    if (!chats.length) {
+
+        list.innerHTML = `
+            <div style="
+                padding:15px;
+                color:#777;
+                font-size:14px;
+            ">
+                No chats yet
+            </div>
+        `;
+
+        return;
+    }
+
+
+    chats.forEach(
+        function(chat) {
+
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+
+            item.className =
+                "chat-item";
+
+
+            item.textContent =
+                chat.title ||
+                "New Chat";
+
+
+            item.addEventListener(
+                "click",
+                function() {
+                    openChat(chat.id);
+                }
+            );
+
+
+            list.appendChild(item);
+        }
+    );
+}
+
+
+/* =========================================================
+   OPEN CHAT
+========================================================= */
+
+async function openChat(id) {
+
+    try {
+
+        const response =
+            await fetch(
+                API +
+                "/api/chats/" +
+                id,
+                {
+                    headers: {
+                        Authorization:
+                            "Bearer " + token
+                    }
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+            return;
+        }
+
+
+        currentChatId =
+            data.chat.id;
+
+
+        const messages =
+            data.chat.messages || [];
+
+
+        renderMessages(messages);
+
+    }
+    catch (error) {
+
+        console.log(error);
+    }
+}
+
+
+/* =========================================================
+   RENDER MESSAGES
+========================================================= */
+
+function renderMessages(messages) {
+
+    const container =
+        document.getElementById(
+            "messages"
+        );
+
+
+    container.innerHTML = "";
+
+
+    if (!messages.length) {
+
+        showWelcome();
+
+        return;
+    }
+
+
+    messages.forEach(
+        function(message) {
+
+            addMessage(
+                message.role,
+                message.content
+            );
+        }
+    );
+
+
+    scrollBottom();
+}
+
+
+/* =========================================================
+   WELCOME
+========================================================= */
+
+function showWelcome() {
+
+    document.getElementById(
+        "messages"
+    ).innerHTML = `
+
+        <div class="welcome">
+
+            <h1>
+                How can I help you?
+            </h1>
+
+            <p>
+                Ask anything and Suhas AI will answer.
+            </p>
+
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   ADD MESSAGE
+========================================================= */
+
+function addMessage(
+    role,
+    content
+) {
+
+    const container =
+        document.getElementById(
+            "messages"
+        );
+
+
+    const message =
+        document.createElement(
+            "div"
+        );
+
+
+    message.className =
+        "message";
+
+
+    const avatar =
+        document.createElement(
+            "div"
+        );
+
+
+    avatar.className =
+        "message-avatar " +
+        (
+            role === "user"
+                ? "user-avatar"
+                : "ai-avatar"
+        );
+
+
+    avatar.textContent =
+        role === "user"
+            ? "Y"
+            : "S";
+
+
+    const body =
+        document.createElement(
+            "div"
+        );
+
+
+    body.className =
+        "message-content";
+
+
+    body.textContent =
+        content || "";
+
+
+    message.appendChild(
+        avatar
+    );
+
+
+    message.appendChild(
+        body
+    );
+
+
+    container.appendChild(
+        message
+    );
+}
+
+
+/* =========================================================
+   NEW CHAT
+========================================================= */
+
+newChatButton.addEventListener(
+    "click",
+    function() {
+
+        currentChatId = null;
+
+        showWelcome();
+
+        questionInput.focus();
+    }
+);
+
+
+/* =========================================================
+   SEND MESSAGE
+========================================================= */
+
+sendButton.addEventListener(
+    "click",
+    sendMessage
+);
+
+
+questionInput.addEventListener(
+    "keydown",
+    function(event) {
+
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
+
+            event.preventDefault();
+
+            sendMessage();
+        }
+    }
+);
+
+
+async function sendMessage() {
+
+    const question =
+        questionInput.value.trim();
+
+
+    if (!question) {
+        return;
+    }
+
+
+    if (!token) {
+
+        logout();
+
+        return;
+    }
+
+
+    questionInput.value = "";
+
+    sendButton.disabled = true;
+
+
+    const welcome =
+        document.querySelector(
+            ".welcome"
+        );
+
+
+    if (welcome) {
+        welcome.remove();
+    }
+
+
+    addMessage(
+        "user",
+        question
+    );
+
+
+    scrollBottom();
+
+
+    try {
+
+        const response =
+            await fetch(
+                API + "/api/ask",
+                {
+                    method: "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json",
+
+                        Authorization:
+                            "Bearer " + token
+                    },
+
+                    body:
+                        JSON.stringify({
+                            question,
+                            chatId:
+                                currentChatId
+                        })
+                }
+            );
+
+
+        let data = {};
+
+        try {
+
+            data =
+                await response.json();
+
+        }
+        catch {
+
+            data = {};
+        }
+
+
+        if (response.status === 401) {
+
+            logout();
+
+            return;
+        }
+
+
+        if (!response.ok) {
+
+            addMessage(
+                "assistant",
+                "❌ " +
+                (
+                    data.message ||
+                    "AI request failed."
+                )
+            );
+
+            return;
+        }
+
+
+        currentChatId =
+            data.chatId ||
+            currentChatId;
+
+
+        addMessage(
+            "assistant",
+            data.answer ||
+            data.message ||
+            "No answer received."
+        );
+
+
+        await loadChats();
+
+        scrollBottom();
+
+    }
+    catch (error) {
+
+        console.error(error);
+
+        addMessage(
+            "assistant",
+            "❌ Cannot connect to Suhas AI server."
+        );
+
+    }
+    finally {
+
+        sendButton.disabled = false;
+
+        questionInput.focus();
+    }
+}
+
+
+/* =========================================================
+   SCROLL
+========================================================= */
+
+function scrollBottom() {
+
+    const container =
+        document.getElementById(
+            "messages"
+        );
+
+
+    container.scrollTop =
+        container.scrollHeight;
+}
+
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+
+logoutButton.addEventListener(
+    "click",
+    logout
+);
+
+
+function logout() {
+
+    localStorage.removeItem(
+        "suhas_token"
+    );
+
+
+    token = null;
+
+    currentUser = null;
+
+    currentChatId = null;
+
+
+    app.style.display =
+        "none";
+
+
+    authScreen.style.display =
+        "flex";
+
+
+    document.getElementById(
+        "emailInput"
+    ).value = "";
+
+
+    document.getElementById(
+        "passwordInput"
+    ).value = "";
+}
+
+
+/* =========================================================
+   START WEBSITE
+========================================================= */
+
+async function startApp() {
+
+    /*
+       No token = show login
+    */
+
+    if (!token) {
+
+        authScreen.style.display =
+            "flex";
+
+        app.style.display =
+            "none";
+
+        return;
+    }
+
+
+    /*
+       Token exists = check login
+    */
+
+    const valid =
+        await loadCurrentUser();
+
+
+    if (!valid) {
+
+        authScreen.style.display =
+            "flex";
+
+        app.style.display =
+            "none";
+
+        return;
+    }
+
+
+    /*
+       Login valid = open app
+    */
+
+    authScreen.style.display =
+        "none";
+
+    app.style.display =
+        "flex";
+
+
+    updateProfile();
+
+    loadChats();
+}
+
+
+/* START */
+
+startApp();
+
+</script>
+
+</body>
+</html>
