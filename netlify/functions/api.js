@@ -83,9 +83,11 @@ app.get("/api/status", (req, res) => {
     success: true,
     service: "Suhas AI",
     status: "online",
+
     openai: !!openai,
     groq: !!groq,
     ai: !!(openai || groq),
+
     login: true,
     chatHistory: true,
     search: true,
@@ -137,7 +139,7 @@ app.post("/api/auth/signup", async (req, res) => {
       });
     }
 
-    if (password.length < 6) {
+    if (String(password).length < 6) {
       return res.status(400).json({
         success: false,
         message: "Password must be at least 6 characters",
@@ -146,7 +148,9 @@ app.post("/api/auth/signup", async (req, res) => {
 
     const users = await readData("users", []);
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = String(email)
+      .trim()
+      .toLowerCase();
 
     const existingUser = users.find(
       (user) => user.email === normalizedEmail
@@ -159,7 +163,10 @@ app.post("/api/auth/signup", async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(
+      String(password),
+      10
+    );
 
     const newUser = {
       id:
@@ -167,7 +174,7 @@ app.post("/api/auth/signup", async (req, res) => {
         "-" +
         Math.random().toString(36).substring(2, 10),
 
-      name: name.trim(),
+      name: String(name).trim(),
 
       email: normalizedEmail,
 
@@ -232,7 +239,9 @@ app.post("/api/auth/login", async (req, res) => {
 
     const users = await readData("users", []);
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = String(email)
+      .trim()
+      .toLowerCase();
 
     const user = users.find(
       (item) => item.email === normalizedEmail
@@ -246,7 +255,7 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     const passwordMatch = await bcrypt.compare(
-      password,
+      String(password),
       user.password
     );
 
@@ -387,7 +396,9 @@ app.get("/api/chats", authMiddleware, async (req, res) => {
     const chats = await readData("chats", []);
 
     const userChats = chats
-      .filter((chat) => chat.userId === req.user.id)
+      .filter(
+        (chat) => chat.userId === req.user.id
+      )
       .sort(
         (a, b) =>
           new Date(b.updatedAt) -
@@ -413,395 +424,584 @@ app.get("/api/chats", authMiddleware, async (req, res) => {
 // GET SINGLE CHAT
 // ==========================================
 
-app.get("/api/chats/:id", authMiddleware, async (req, res) => {
-  try {
-    const chats = await readData("chats", []);
+app.get(
+  "/api/chats/:id",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const chats = await readData("chats", []);
 
-    const chat = chats.find(
-      (item) =>
-        item.id === req.params.id &&
-        item.userId === req.user.id
-    );
+      const chat = chats.find(
+        (item) =>
+          item.id === req.params.id &&
+          item.userId === req.user.id
+      );
 
-    if (!chat) {
-      return res.status(404).json({
+      if (!chat) {
+        return res.status(404).json({
+          success: false,
+          message: "Chat not found",
+        });
+      }
+
+      return res.json({
+        success: true,
+        chat,
+      });
+    } catch (error) {
+      console.error("Get chat error:", error);
+
+      return res.status(500).json({
         success: false,
-        message: "Chat not found",
+        message: "Failed to get chat",
+        error: error.message,
       });
     }
-
-    return res.json({
-      success: true,
-      chat,
-    });
-  } catch (error) {
-    console.error("Get chat error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to get chat",
-      error: error.message,
-    });
   }
-});
+);
 
 // ==========================================
 // UPDATE CHAT
 // ==========================================
 
-app.put("/api/chats/:id", authMiddleware, async (req, res) => {
-  try {
-    const { title, messages } = req.body;
+app.put(
+  "/api/chats/:id",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const { title, messages } = req.body;
 
-    const chats = await readData("chats", []);
+      const chats = await readData("chats", []);
 
-    const index = chats.findIndex(
-      (item) =>
-        item.id === req.params.id &&
-        item.userId === req.user.id
-    );
+      const index = chats.findIndex(
+        (item) =>
+          item.id === req.params.id &&
+          item.userId === req.user.id
+      );
 
-    if (index === -1) {
-      return res.status(404).json({
+      if (index === -1) {
+        return res.status(404).json({
+          success: false,
+          message: "Chat not found",
+        });
+      }
+
+      if (title !== undefined) {
+        chats[index].title = title;
+      }
+
+      if (messages !== undefined) {
+        chats[index].messages = messages;
+      }
+
+      chats[index].updatedAt =
+        new Date().toISOString();
+
+      await writeData("chats", chats);
+
+      return res.json({
+        success: true,
+        chat: chats[index],
+      });
+    } catch (error) {
+      console.error("Update chat error:", error);
+
+      return res.status(500).json({
         success: false,
-        message: "Chat not found",
+        message: "Failed to update chat",
+        error: error.message,
       });
     }
-
-    if (title !== undefined) {
-      chats[index].title = title;
-    }
-
-    if (messages !== undefined) {
-      chats[index].messages = messages;
-    }
-
-    chats[index].updatedAt = new Date().toISOString();
-
-    await writeData("chats", chats);
-
-    return res.json({
-      success: true,
-      chat: chats[index],
-    });
-  } catch (error) {
-    console.error("Update chat error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to update chat",
-      error: error.message,
-    });
   }
-});
+);
 
 // ==========================================
 // DELETE SINGLE CHAT
 // ==========================================
 
-app.delete("/api/chats/:id", authMiddleware, async (req, res) => {
-  try {
-    const chats = await readData("chats", []);
+app.delete(
+  "/api/chats/:id",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const chats = await readData("chats", []);
 
-    const newChats = chats.filter(
-      (chat) =>
-        !(
-          chat.id === req.params.id &&
-          chat.userId === req.user.id
-        )
-    );
+      const newChats = chats.filter(
+        (chat) =>
+          !(
+            chat.id === req.params.id &&
+            chat.userId === req.user.id
+          )
+      );
 
-    if (newChats.length === chats.length) {
-      return res.status(404).json({
+      if (newChats.length === chats.length) {
+        return res.status(404).json({
+          success: false,
+          message: "Chat not found",
+        });
+      }
+
+      await writeData("chats", newChats);
+
+      return res.json({
+        success: true,
+        message: "Chat deleted successfully",
+      });
+    } catch (error) {
+      console.error(
+        "Delete chat error:",
+        error
+      );
+
+      return res.status(500).json({
         success: false,
-        message: "Chat not found",
+        message: "Failed to delete chat",
+        error: error.message,
       });
     }
-
-    await writeData("chats", newChats);
-
-    return res.json({
-      success: true,
-      message: "Chat deleted successfully",
-    });
-  } catch (error) {
-    console.error("Delete chat error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to delete chat",
-      error: error.message,
-    });
   }
-});
+);
 
 // ==========================================
 // SEARCH CHATS
 // ==========================================
 
-app.get("/api/chats/search", authMiddleware, async (req, res) => {
-  try {
-    const query = String(req.query.q || "")
-      .trim()
-      .toLowerCase();
+app.get(
+  "/api/chats/search",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const query = String(
+        req.query.q || ""
+      )
+        .trim()
+        .toLowerCase();
 
-    if (!query) {
+      if (!query) {
+        return res.json({
+          success: true,
+          chats: [],
+        });
+      }
+
+      const chats = await readData("chats", []);
+
+      const userChats = chats.filter(
+        (chat) =>
+          chat.userId === req.user.id
+      );
+
+      const results = userChats.filter(
+        (chat) => {
+          const titleMatch = String(
+            chat.title || ""
+          )
+            .toLowerCase()
+            .includes(query);
+
+          const messageMatch =
+            Array.isArray(chat.messages)
+              ? chat.messages.some(
+                  (message) =>
+                    String(
+                      message.content || ""
+                    )
+                      .toLowerCase()
+                      .includes(query)
+                )
+              : false;
+
+          return titleMatch || messageMatch;
+        }
+      );
+
       return res.json({
         success: true,
-        chats: [],
+        chats: results,
+      });
+    } catch (error) {
+      console.error(
+        "Search chats error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Search failed",
+        error: error.message,
       });
     }
-
-    const chats = await readData("chats", []);
-
-    const userChats = chats.filter(
-      (chat) => chat.userId === req.user.id
-    );
-
-    const results = userChats.filter((chat) => {
-      const titleMatch = String(chat.title || "")
-        .toLowerCase()
-        .includes(query);
-
-      const messageMatch = Array.isArray(chat.messages)
-        ? chat.messages.some((message) =>
-            String(message.content || "")
-              .toLowerCase()
-              .includes(query)
-          )
-        : false;
-
-      return titleMatch || messageMatch;
-    });
-
-    return res.json({
-      success: true,
-      chats: results,
-    });
-  } catch (error) {
-    console.error("Search chats error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Search failed",
-      error: error.message,
-    });
   }
-});
+);
 
 // ==========================================
 // ASK AI
 // ==========================================
 
-app.post("/api/ask", authMiddleware, async (req, res) => {
-  try {
-    const { message, chatId } = req.body;
+app.post(
+  "/api/ask",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const { message, chatId } = req.body;
 
-    if (!message || !String(message).trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Message is required",
-      });
-    }
+      // --------------------------------------
+      // CHECK MESSAGE
+      // --------------------------------------
 
-    const userMessage = String(message).trim();
+      if (
+        !message ||
+        !String(message).trim()
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Message is required",
+        });
+      }
 
-    const chats = await readData("chats", []);
+      const userMessage =
+        String(message).trim();
 
-    let chat = null;
-    let chatIndex = -1;
+      // --------------------------------------
+      // LOAD CHATS
+      // --------------------------------------
 
-    if (chatId) {
-      chatIndex = chats.findIndex(
-        (item) =>
-          item.id === chatId &&
-          item.userId === req.user.id
+      const chats = await readData(
+        "chats",
+        []
       );
 
-      if (chatIndex !== -1) {
-        chat = chats[chatIndex];
-      }
-    }
+      let chat = null;
+      let chatIndex = -1;
 
-    if (!chat) {
-      chat = {
-        id:
-          Date.now().toString() +
-          "-" +
-          Math.random().toString(36).substring(2, 10),
+      // --------------------------------------
+      // FIND EXISTING CHAT
+      // --------------------------------------
 
-        userId: req.user.id,
-
-        title:
-          userMessage.length > 50
-            ? userMessage.substring(0, 50) + "..."
-            : userMessage,
-
-        messages: [],
-
-        createdAt: new Date().toISOString(),
-
-        updatedAt: new Date().toISOString(),
-      };
-
-      chats.push(chat);
-
-      chatIndex = chats.length - 1;
-    }
-
-    chat.messages.push({
-      role: "user",
-      content: userMessage,
-      createdAt: new Date().toISOString(),
-    });
-
-    let answer = "";
-    let aiUsed = "";
-
-    const aiMessages = [
-      {
-        role: "system",
-        content:
-          "You are Suhas AI, a helpful, friendly and accurate AI assistant. Answer clearly and naturally. Use simple language when appropriate.",
-      },
-
-      ...chat.messages.map((item) => ({
-        role: item.role,
-        content: item.content,
-      })),
-    ];
-
-    // ======================================
-    // OPENAI
-    // ======================================
-
-    if (openai) {
-      try {
-        const completion =
-          await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: aiMessages,
-            temperature: 0.3,
-            max_tokens: 4096,
-          });
-
-        answer =
-          completion.choices?.[0]?.message?.content ||
-          "";
-
-        if (answer) {
-          aiUsed = "OpenAI";
-        }
-      } catch (error) {
-        console.error(
-          "OpenAI error:",
-          error.message
+      if (chatId) {
+        chatIndex = chats.findIndex(
+          (item) =>
+            item.id === chatId &&
+            item.userId === req.user.id
         );
-      }
-    }
 
-    // ======================================
-    // GROQ BACKUP
-    // ======================================
-
-    if (!answer && groq) {
-      try {
-        const completion =
-          await groq.chat.completions.create({
-            model: "openai/gpt-oss-120b",
-            messages: aiMessages,
-            temperature: 0.3,
-            max_tokens: 4096,
-          });
-
-        answer =
-          completion.choices?.[0]?.message?.content ||
-          "";
-
-        if (answer) {
-          aiUsed = "Groq";
+        if (chatIndex !== -1) {
+          chat = chats[chatIndex];
         }
-      } catch (error) {
-        console.error(
-          "Groq error:",
-          error.message
-        );
       }
-    }
 
-    if (!answer) {
-      return res.status(503).json({
+      // --------------------------------------
+      // CREATE NEW CHAT
+      // --------------------------------------
+
+      if (!chat) {
+        chat = {
+          id:
+            Date.now().toString() +
+            "-" +
+            Math.random()
+              .toString(36)
+              .substring(2, 10),
+
+          userId: req.user.id,
+
+          title:
+            userMessage.length > 50
+              ? userMessage.substring(0, 50) +
+                "..."
+              : userMessage,
+
+          messages: [],
+
+          createdAt:
+            new Date().toISOString(),
+
+          updatedAt:
+            new Date().toISOString(),
+        };
+
+        chats.push(chat);
+
+        chatIndex = chats.length - 1;
+      }
+
+      // --------------------------------------
+      // SAVE USER MESSAGE
+      // --------------------------------------
+
+      chat.messages.push({
+        role: "user",
+        content: userMessage,
+        createdAt:
+          new Date().toISOString(),
+      });
+
+      // --------------------------------------
+      // AI MESSAGES
+      // --------------------------------------
+
+      const aiMessages = [
+        {
+          role: "system",
+          content:
+            "You are Suhas AI, a helpful, friendly and accurate AI assistant. Answer clearly and naturally. Use simple language when appropriate.",
+        },
+
+        ...chat.messages.map((item) => ({
+          role: item.role,
+          content: item.content,
+        })),
+      ];
+
+      let answer = "";
+      let aiUsed = "";
+
+      let groqError = "";
+      let openaiError = "";
+
+      // ======================================
+      // GROQ
+      // ======================================
+
+      if (groq) {
+        try {
+          console.log(
+            "Suhas AI: Trying Groq..."
+          );
+
+          const completion =
+            await groq.chat.completions.create(
+              {
+                model:
+                  "openai/gpt-oss-120b",
+
+                messages: aiMessages,
+
+                temperature: 0.3,
+
+                max_tokens: 4096,
+              }
+            );
+
+          answer =
+            completion
+              ?.choices?.[0]
+              ?.message
+              ?.content || "";
+
+          if (answer) {
+            aiUsed = "Groq";
+
+            console.log(
+              "Suhas AI: Groq response received."
+            );
+          }
+        } catch (error) {
+          groqError =
+            error?.message ||
+            "Unknown Groq error";
+
+          console.error(
+            "Suhas AI Groq error:",
+            groqError
+          );
+        }
+      } else {
+        groqError =
+          "GROQ_API_KEY is not available";
+      }
+
+      // ======================================
+      // OPENAI BACKUP
+      // ======================================
+
+      if (!answer && openai) {
+        try {
+          console.log(
+            "Suhas AI: Trying OpenAI..."
+          );
+
+          const completion =
+            await openai.chat.completions.create(
+              {
+                model: "gpt-4o-mini",
+
+                messages: aiMessages,
+
+                temperature: 0.3,
+
+                max_tokens: 4096,
+              }
+            );
+
+          answer =
+            completion
+              ?.choices?.[0]
+              ?.message
+              ?.content || "";
+
+          if (answer) {
+            aiUsed = "OpenAI";
+
+            console.log(
+              "Suhas AI: OpenAI response received."
+            );
+          }
+        } catch (error) {
+          openaiError =
+            error?.message ||
+            "Unknown OpenAI error";
+
+          console.error(
+            "Suhas AI OpenAI error:",
+            openaiError
+          );
+        }
+      } else if (!answer && !openai) {
+        openaiError =
+          "OPENAI_API_KEY is not available";
+      }
+
+      // ======================================
+      // BOTH PROVIDERS FAILED
+      // ======================================
+
+      if (!answer) {
+        console.error(
+          "Suhas AI: Both AI providers failed."
+        );
+
+        return res.status(503).json({
+          success: false,
+
+          message:
+            "AI service is temporarily unavailable",
+
+          diagnostic: {
+            groq:
+              groqError ||
+              "No Groq error",
+
+            openai:
+              openaiError ||
+              "No OpenAI error",
+          },
+        });
+      }
+
+      // ======================================
+      // SAVE AI MESSAGE
+      // ======================================
+
+      chat.messages.push({
+        role: "assistant",
+
+        content: answer,
+
+        ai: aiUsed,
+
+        createdAt:
+          new Date().toISOString(),
+      });
+
+      chat.updatedAt =
+        new Date().toISOString();
+
+      chats[chatIndex] = chat;
+
+      // --------------------------------------
+      // SAVE CHAT
+      // --------------------------------------
+
+      await writeData(
+        "chats",
+        chats
+      );
+
+      // ======================================
+      // SUCCESS RESPONSE
+      // ======================================
+
+      return res.json({
+        success: true,
+
+        answer,
+
+        ai: aiUsed,
+
+        chatId: chat.id,
+
+        chat,
+      });
+    } catch (error) {
+      console.error(
+        "Suhas AI request error:",
+        error
+      );
+
+      return res.status(500).json({
         success: false,
+
         message:
-          "AI service is temporarily unavailable",
+          "AI request failed",
+
+        error:
+          error?.message ||
+          "Unknown error",
       });
     }
-
-    chat.messages.push({
-      role: "assistant",
-      content: answer,
-      ai: aiUsed,
-      createdAt: new Date().toISOString(),
-    });
-
-    chat.updatedAt = new Date().toISOString();
-
-    chats[chatIndex] = chat;
-
-    await writeData("chats", chats);
-
-    return res.json({
-      success: true,
-      answer,
-      ai: aiUsed,
-      chatId: chat.id,
-      chat,
-    });
-  } catch (error) {
-    console.error("AI request error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "AI request failed",
-      error: error.message,
-    });
   }
-});
+);
 
 // ==========================================
 // DELETE ALL CHATS
 // ==========================================
 
-app.delete("/api/chats", authMiddleware, async (req, res) => {
-  try {
-    const chats = await readData("chats", []);
+app.delete(
+  "/api/chats",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const chats = await readData(
+        "chats",
+        []
+      );
 
-    const remainingChats = chats.filter(
-      (chat) => chat.userId !== req.user.id
-    );
+      const remainingChats =
+        chats.filter(
+          (chat) =>
+            chat.userId !== req.user.id
+        );
 
-    await writeData("chats", remainingChats);
+      await writeData(
+        "chats",
+        remainingChats
+      );
 
-    return res.json({
-      success: true,
-      message: "All chats deleted successfully",
-    });
-  } catch (error) {
-    console.error(
-      "Delete all chats error:",
-      error
-    );
+      return res.json({
+        success: true,
+        message:
+          "All chats deleted successfully",
+      });
+    } catch (error) {
+      console.error(
+        "Delete all chats error:",
+        error
+      );
 
-    return res.status(500).json({
-      success: false,
-      message: "Failed to delete chats",
-      error: error.message,
-    });
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to delete chats",
+        error: error.message,
+      });
+    }
   }
-});
+);
 
 // ==========================================
 // NETLIFY EXPORT
 // ==========================================
 
-module.exports.handler = serverless(app);
+module.exports.handler =
+  serverless(app);
